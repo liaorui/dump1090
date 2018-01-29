@@ -276,8 +276,27 @@ void modesSendRawOutput(struct modesMessage *mm) {
             p += 2;
         }
         Modes.rawOutUsed += 12; // additional 12 characters for timestamp
-    } else
-        *p++ = '*';
+    } else {
+        char *r = mm->radar;
+        
+        if(*r == '\0'){
+            *p++ = '*';
+        } else {
+            *p++ = '@';
+            
+            int k = 0;
+            while(*r != '\0'){
+                *p++ = *r++;
+                k ++;
+            }
+            while(k < 20){   // padding with # for length 20
+                *p++ = '#';
+                k ++;
+            }
+
+            Modes.rawOutUsed += 20;
+        }
+    }
 
     for (j = 0; j < msgLen; j++) {
         sprintf(p, "%02X", mm->msg[j]);
@@ -591,18 +610,31 @@ int decodeHexMessage(struct client *c, char *hex) {
 
         case '@':     // No CRC check
         case '%': {   // CRC is OK
-            hex += 13; l -= 14; // Skip @,%, and timestamp, and ;
+            hex++;
+            memcpy(mm.radar, hex, 20);
+            char *p = mm.radar;
+            p += 19;
+            while(*p == '#'){ // trim #
+                *p-- = '\0';
+            }
+            hex += 20; l -= 22; // Skip @,%, and timestamp, and ;
             break;}
 
         case '*':
         case ':': {
             hex++; l-=2; // Skip * and ;
+            struct sockaddr_in addr;
+            socklen_t addr_size = sizeof(struct sockaddr_in);
+            getpeername(c->fd, (struct sockaddr *)&addr, &addr_size);
+            strcpy(mm.radar, inet_ntoa(addr.sin_addr));
             break;}
 
         default: {
             return (0); // We don't know what this is, so abort
             break;}
     }
+
+    
 
     if ( (l != (MODEAC_MSG_BYTES      * 2)) 
       && (l != (MODES_SHORT_MSG_BYTES * 2)) 
@@ -647,6 +679,7 @@ char *aircraftsToJson(int *len) {
     while(a) {
         int position = 0;
         int track = 0;
+        int ground = 0;
 
         if (a->modeACflags & MODEAC_MSG_FLAG) { // skip any fudged ICAO records Mode A/C
             a = a->next;
@@ -660,14 +693,19 @@ char *aircraftsToJson(int *len) {
         if (a->bFlags & MODES_ACFLAGS_HEADING_VALID) {
             track = 1;
         }
+       
+        if ((a->bFlags & MODES_ACFLAGS_AOG_GROUND) == MODES_ACFLAGS_AOG_GROUND)
+        {
+            ground = 1;
+        }
         
         // No metric conversion
         l = snprintf(p,buflen,
             "{\"hex\":\"%06x\", \"squawk\":\"%04x\", \"flight\":\"%s\", \"lat\":%f, "
             "\"lon\":%f, \"validposition\":%d, \"altitude\":%d,  \"vert_rate\":%d,\"track\":%d, \"validtrack\":%d,"
-            "\"speed\":%d, \"messages\":%ld, \"seen\":%d},\n",
+            "\"speed\":%d, \"messages\":%ld, \"seen\":%d,\"validground\":%d,\"radar\":\"%s\"},\n",
             a->addr, a->modeA, a->flight, a->lat, a->lon, position, a->altitude, a->vert_rate, a->track, track,
-            a->speed, a->messages, (int)(now - a->seen));
+            a->speed, a->messages, (int)(now - a->seen),ground,a->radar);
         p += l; buflen -= l;
         
         //Resize if needed

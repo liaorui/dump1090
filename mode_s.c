@@ -1135,6 +1135,7 @@ void decodeModesMessage(struct modesMessage *mm, unsigned char *msg) {
         } else {
         }
     }
+
 }
 //
 //=========================================================================
@@ -1794,6 +1795,9 @@ void detectModeS(uint16_t *m, uint32_t mlen) {
 
             // Decode the received message
             decodeModesMessage(&mm, msg);
+
+            // mark this device
+            gethostname(mm.radar, sizeof(mm.radar));
 
             // Update statistics
             if (Modes.stats) {

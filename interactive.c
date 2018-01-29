@@ -293,6 +293,8 @@ struct aircraft *interactiveReceiveData(struct modesMessage *mm) {
     a->timestamp = mm->timestampMsg;
     a->messages++;
 
+    memcpy(a->radar, mm->radar, sizeof(a->radar));
+
     // If a (new) CALLSIGN has been received, copy it to the aircraft structure
     if (mm->bFlags & MODES_ACFLAGS_CALLSIGN_VALID) {
         memcpy(a->flight, mm->flight, sizeof(a->flight));

@@ -57,6 +57,8 @@
     #include <ctype.h>
     #include <sys/stat.h>
     #include <sys/ioctl.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
     #include "rtl-sdr.h"
     #include "anet.h"
 #else
@@ -174,8 +176,8 @@
 #define MODES_NET_INPUT_BEAST_PORT  30004
 #define MODES_NET_OUTPUT_BEAST_PORT 30005
 #define MODES_NET_HTTP_PORT          8080
-#define MODES_CLIENT_BUF_SIZE  1024
-#define MODES_NET_SNDBUF_SIZE (1024*64)
+#define MODES_CLIENT_BUF_SIZE  1024*2
+#define MODES_NET_SNDBUF_SIZE (1024*768)
 #define MODES_NET_SNDBUF_MAX  (7)
 
 #ifndef HTMLPATH
@@ -224,6 +226,7 @@ struct aircraft {
     uint64_t      even_cprtime;
     double        lat, lon;       // Coordinated obtained from CPR encoded data
     int           bFlags;         // Flags related to valid fields in this structure
+    char          radar[20];         // marking this device
     struct aircraft *next;        // Next aircraft in our linked list
 };
 
@@ -387,6 +390,8 @@ struct modesMessage {
     uint64_t      timestampMsg;                   // Timestamp of the message
     int           remote;                         // If set this message is from a remote station
     unsigned char signalLevel;                    // Signal Amplitude
+
+    char          radar[20];                         // Marking this device
 
     // DF 11
     int  ca;                    // Responder capabilities
